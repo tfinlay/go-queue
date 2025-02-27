@@ -15,7 +15,7 @@ import (
 
 // Queue represents a double-ended queue.
 // The zero value is an empty queue ready to use.
-type Queue struct {
+type Queue[T any] struct {
 	// PushBack writes to rep[back] then increments back; PushFront
 	// decrements front then writes to rep[front]; len(rep) is a power
 	// of two; unused slots are nil and not garbage.
@@ -26,12 +26,12 @@ type Queue struct {
 }
 
 // New returns an initialized empty queue.
-func New() *Queue {
-	return new(Queue).Init()
+func New[T any]() *Queue[T] {
+	return new(Queue[T]).Init()
 }
 
 // Init initializes or clears queue q.
-func (q *Queue) Init() *Queue {
+func (q *Queue[T]) Init() *Queue[T] {
 	q.rep = make([]interface{}, 1)
 	q.front, q.back, q.length = 0, 0, 0
 	return q
@@ -43,34 +43,34 @@ func (q *Queue) Init() *Queue {
 // Personally I think it's a little wasteful because every single
 // PushFront/PushBack is going to pay the overhead of calling this.
 // But that's the price for making zero values useful immediately.
-func (q *Queue) lazyInit() {
+func (q *Queue[T]) lazyInit() {
 	if q.rep == nil {
 		q.Init()
 	}
 }
 
 // Len returns the number of elements of queue q.
-func (q *Queue) Len() int {
+func (q *Queue[T]) Len() int {
 	return q.length
 }
 
 // empty returns true if the queue q has no elements.
-func (q *Queue) empty() bool {
+func (q *Queue[T]) empty() bool {
 	return q.length == 0
 }
 
 // full returns true if the queue q is at capacity.
-func (q *Queue) full() bool {
+func (q *Queue[T]) full() bool {
 	return q.length == len(q.rep)
 }
 
 // sparse returns true if the queue q has excess capacity.
-func (q *Queue) sparse() bool {
+func (q *Queue[T]) sparse() bool {
 	return 1 < q.length && q.length < len(q.rep)/4
 }
 
 // resize adjusts the size of queue q's underlying slice.
-func (q *Queue) resize(size int) {
+func (q *Queue[T]) resize(size int) {
 	adjusted := make([]interface{}, size)
 	if q.front < q.back {
 		// rep not "wrapped" around, one copy suffices
@@ -86,14 +86,14 @@ func (q *Queue) resize(size int) {
 }
 
 // lazyGrow grows the underlying slice if necessary.
-func (q *Queue) lazyGrow() {
+func (q *Queue[T]) lazyGrow() {
 	if q.full() {
 		q.resize(len(q.rep) * 2)
 	}
 }
 
 // lazyShrink shrinks the underlying slice if advisable.
-func (q *Queue) lazyShrink() {
+func (q *Queue[T]) lazyShrink() {
 	if q.sparse() {
 		q.resize(len(q.rep) / 2)
 	}
@@ -101,7 +101,7 @@ func (q *Queue) lazyShrink() {
 
 // String returns a string representation of queue q formatted
 // from front to back.
-func (q *Queue) String() string {
+func (q *Queue[T]) String() string {
 	var result bytes.Buffer
 	result.WriteByte('[')
 	j := q.front
@@ -117,29 +117,33 @@ func (q *Queue) String() string {
 }
 
 // inc returns the next integer position wrapping around queue q.
-func (q *Queue) inc(i int) int {
+func (q *Queue[T]) inc(i int) int {
 	return (i + 1) & (len(q.rep) - 1) // requires l = 2^n
 }
 
 // dec returns the previous integer position wrapping around queue q.
-func (q *Queue) dec(i int) int {
+func (q *Queue[T]) dec(i int) int {
 	return (i - 1) & (len(q.rep) - 1) // requires l = 2^n
 }
 
 // Front returns the first element of queue q or nil.
-func (q *Queue) Front() interface{} {
-	// no need to check q.empty(), unused slots are nil
-	return q.rep[q.front]
+func (q *Queue[T]) Front() (T, bool) {
+	if q.empty() {
+		return *new(T), false
+	}
+	return q.rep[q.front].(T), true
 }
 
 // Back returns the last element of queue q or nil.
-func (q *Queue) Back() interface{} {
-	// no need to check q.empty(), unused slots are nil
-	return q.rep[q.dec(q.back)]
+func (q *Queue[T]) Back() (T, bool) {
+	if q.empty() {
+		return *new(T), false
+	}
+	return q.rep[q.dec(q.back)].(T), true
 }
 
 // PushFront inserts a new value v at the front of queue q.
-func (q *Queue) PushFront(v interface{}) {
+func (q *Queue[T]) PushFront(v T) {
 	q.lazyInit()
 	q.lazyGrow()
 	q.front = q.dec(q.front)
@@ -148,7 +152,7 @@ func (q *Queue) PushFront(v interface{}) {
 }
 
 // PushBack inserts a new value v at the back of queue q.
-func (q *Queue) PushBack(v interface{}) {
+func (q *Queue[T]) PushBack(v T) {
 	q.lazyInit()
 	q.lazyGrow()
 	q.rep[q.back] = v
@@ -157,27 +161,27 @@ func (q *Queue) PushBack(v interface{}) {
 }
 
 // PopFront removes and returns the first element of queue q or nil.
-func (q *Queue) PopFront() interface{} {
+func (q *Queue[T]) PopFront() (T, bool) {
 	if q.empty() {
-		return nil
+		return *new(T), false
 	}
 	v := q.rep[q.front]
 	q.rep[q.front] = nil // unused slots must be nil
 	q.front = q.inc(q.front)
 	q.length--
 	q.lazyShrink()
-	return v
+	return v.(T), true
 }
 
 // PopBack removes and returns the last element of queue q or nil.
-func (q *Queue) PopBack() interface{} {
+func (q *Queue[T]) PopBack() (T, bool) {
 	if q.empty() {
-		return nil
+		return *new(T), false
 	}
 	q.back = q.dec(q.back)
 	v := q.rep[q.back]
 	q.rep[q.back] = nil // unused slots must be nil
 	q.length--
 	q.lazyShrink()
-	return v
+	return v.(T), true
 }

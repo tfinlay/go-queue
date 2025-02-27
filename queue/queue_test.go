@@ -8,43 +8,43 @@ import "testing"
 import "container/list"
 import "math/rand"
 
-func ensureEmpty(t *testing.T, q *Queue) {
+func ensureEmpty(t *testing.T, q *Queue[any]) {
 	if l := q.Len(); l != 0 {
 		t.Errorf("q.Len() = %d, want %d", l, 0)
 	}
-	if e := q.Front(); e != nil {
+	if e, ok := q.Front(); ok {
 		t.Errorf("q.Front() = %v, want %v", e, nil)
 	}
-	if e := q.Back(); e != nil {
+	if e, ok := q.Back(); ok {
 		t.Errorf("q.Back() = %v, want %v", e, nil)
 	}
-	if e := q.PopFront(); e != nil {
+	if e, ok := q.PopFront(); ok {
 		t.Errorf("q.PopFront() = %v, want %v", e, nil)
 	}
-	if e := q.PopBack(); e != nil {
+	if e, ok := q.PopBack(); ok {
 		t.Errorf("q.PopBack() = %v, want %v", e, nil)
 	}
 }
 
 func TestNew(t *testing.T) {
-	q := New()
+	q := New[any]()
 	ensureEmpty(t, q)
 }
 
-func ensureSingleton(t *testing.T, q *Queue) {
+func ensureSingleton(t *testing.T, q *Queue[any]) {
 	if l := q.Len(); l != 1 {
 		t.Errorf("q.Len() = %d, want %d", l, 1)
 	}
-	if e := q.Front(); e != 42 {
+	if e, ok := q.Front(); !ok || e != 42 {
 		t.Errorf("q.Front() = %v, want %v", e, 42)
 	}
-	if e := q.Back(); e != 42 {
+	if e, ok := q.Back(); !ok || e != 42 {
 		t.Errorf("q.Back() = %v, want %v", e, 42)
 	}
 }
 
 func TestSingleton(t *testing.T) {
-	q := New()
+	q := New[any]()
 	ensureEmpty(t, q)
 	q.PushFront(42)
 	ensureSingleton(t, q)
@@ -65,7 +65,7 @@ func TestSingleton(t *testing.T) {
 }
 
 func TestDuos(t *testing.T) {
-	q := New()
+	q := New[any]()
 	ensureEmpty(t, q)
 	q.PushFront(42)
 	ensureSingleton(t, q)
@@ -73,22 +73,22 @@ func TestDuos(t *testing.T) {
 	if l := q.Len(); l != 2 {
 		t.Errorf("q.Len() = %d, want %d", l, 2)
 	}
-	if e := q.Front(); e != 42 {
+	if e, ok := q.Front(); !ok || e != 42 {
 		t.Errorf("q.Front() = %v, want %v", e, 42)
 	}
-	if e := q.Back(); e != 43 {
+	if e, ok := q.Back(); !ok || e != 43 {
 		t.Errorf("q.Back() = %v, want %v", e, 43)
 	}
 }
 
-func ensureLength(t *testing.T, q *Queue, len int) {
+func ensureLength[T any](t *testing.T, q *Queue[T], len int) {
 	if l := q.Len(); l != len {
 		t.Errorf("q.Len() = %d, want %d", l, len)
 	}
 }
 
 func TestZeroValue(t *testing.T) {
-	var q Queue
+	var q Queue[int]
 	q.PushFront(1)
 	ensureLength(t, &q, 1)
 	q.PushFront(2)
@@ -114,28 +114,28 @@ func TestZeroValue(t *testing.T) {
 }
 
 func TestGrowShrink1(t *testing.T) {
-	var q Queue
+	var q Queue[int]
 	for i := 0; i < size; i++ {
 		q.PushBack(i)
 		ensureLength(t, &q, i+1)
 	}
 	for i := 0; q.Len() > 0; i++ {
-		x := q.PopFront().(int)
-		if x != i {
+		x, ok := q.PopFront()
+		if !ok || x != i {
 			t.Errorf("q.PopFront() = %d, want %d", x, i)
 		}
 		ensureLength(t, &q, size-i-1)
 	}
 }
 func TestGrowShrink2(t *testing.T) {
-	var q Queue
+	var q Queue[int]
 	for i := 0; i < size; i++ {
 		q.PushFront(i)
 		ensureLength(t, &q, i+1)
 	}
 	for i := 0; q.Len() > 0; i++ {
-		x := q.PopBack().(int)
-		if x != i {
+		x, ok := q.PopBack()
+		if !ok || x != i {
 			t.Errorf("q.PopBack() = %d, want %d", x, i)
 		}
 		ensureLength(t, &q, size-i-1)
@@ -146,7 +146,7 @@ const size = 1024
 
 func BenchmarkPushFrontQueue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		var q Queue
+		var q Queue[int]
 		for n := 0; n < size; n++ {
 			q.PushFront(n)
 		}
@@ -163,7 +163,7 @@ func BenchmarkPushFrontList(b *testing.B) {
 
 func BenchmarkPushBackQueue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		var q Queue
+		var q Queue[int]
 		for n := 0; n < size; n++ {
 			q.PushBack(n)
 		}
@@ -202,7 +202,7 @@ func BenchmarkRandomQueue(b *testing.B) {
 	makeRands()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var q Queue
+		var q Queue[int]
 		for n := 0; n < 4*size; n += 4 {
 			if rands[n] < 0.8 {
 				q.PushBack(n)
@@ -247,7 +247,7 @@ func BenchmarkRandomList(b *testing.B) {
 
 func BenchmarkGrowShrinkQueue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		var q Queue
+		var q Queue[int]
 		for n := 0; n < size; n++ {
 			q.PushBack(i)
 		}

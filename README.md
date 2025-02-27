@@ -1,3 +1,7 @@
+> [!WARNING]
+> This repo contains some minor modifications I've made against a fork of an unmaintained queuing library: https://github.com/phf/go-queue
+> Use at your own risk!
+
 # Queue data structure for Go
 
 [![GoDoc](https://godoc.org/github.com/phf/go-queue/queue?status.png)](http://godoc.org/github.com/phf/go-queue/queue)
