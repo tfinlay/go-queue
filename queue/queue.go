@@ -23,7 +23,7 @@ type entry[T any] struct {
 type Queue[T any] struct {
 	// PushBack writes to rep[back] then increments back; PushFront
 	// decrements front then writes to rep[front]; len(rep) is a power
-	// of two; unused slots are nil and not garbage.
+	// of two; unused slots are set to 'empty' structs and not garbage.
 	rep    []entry[T]
 	front  int
 	back   int
@@ -131,7 +131,7 @@ func (q *Queue[T]) dec(i int) int {
 	return (i - 1) & (len(q.rep) - 1) // requires l = 2^n
 }
 
-// Front returns the first element of queue q or nil.
+// Front returns the first element of queue q or T's zero value.
 func (q *Queue[T]) Front() (T, bool) {
 	if q.empty() {
 		return *new(T), false
@@ -139,7 +139,7 @@ func (q *Queue[T]) Front() (T, bool) {
 	return q.rep[q.front].Value, true
 }
 
-// Back returns the last element of queue q or nil.
+// Back returns the last element of queue q or T's zero value.
 func (q *Queue[T]) Back() (T, bool) {
 	if q.empty() {
 		return *new(T), false
@@ -165,27 +165,27 @@ func (q *Queue[T]) PushBack(v T) {
 	q.length++
 }
 
-// PopFront removes and returns the first element of queue q or nil.
+// PopFront removes and returns the first element of queue q or T's zero value.
 func (q *Queue[T]) PopFront() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
 	v := q.rep[q.front]
-	q.rep[q.front] = entry[T]{ValueSet: false} // unused slots must be nil
+	q.rep[q.front] = entry[T]{ValueSet: false} // unused slots must be set to empty
 	q.front = q.inc(q.front)
 	q.length--
 	q.lazyShrink()
 	return v.Value, true
 }
 
-// PopBack removes and returns the last element of queue q or nil.
+// PopBack removes and returns the last element of queue q or T's zero value.
 func (q *Queue[T]) PopBack() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
 	q.back = q.dec(q.back)
 	v := q.rep[q.back]
-	q.rep[q.back] = entry[T]{ValueSet: false} // unused slots must be nil
+	q.rep[q.back] = entry[T]{ValueSet: false} // unused slots must be set to empty
 	q.length--
 	q.lazyShrink()
 	return v.Value, true
