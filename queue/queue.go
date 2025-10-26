@@ -13,13 +13,18 @@ import (
 	"fmt"
 )
 
+type entry[T any] struct {
+	Value    T
+	ValueSet bool
+}
+
 // Queue represents a double-ended queue.
 // The zero value is an empty queue ready to use.
 type Queue[T any] struct {
 	// PushBack writes to rep[back] then increments back; PushFront
 	// decrements front then writes to rep[front]; len(rep) is a power
-	// of two; unused slots are nil and not garbage.
-	rep    []interface{}
+	// of two; unused slots are set to 'empty' structs and not garbage.
+	rep    []entry[T]
 	front  int
 	back   int
 	length int
@@ -32,7 +37,7 @@ func New[T any]() *Queue[T] {
 
 // Init initializes or clears queue q.
 func (q *Queue[T]) Init() *Queue[T] {
-	q.rep = make([]interface{}, 1)
+	q.rep = make([]entry[T], 1)
 	q.front, q.back, q.length = 0, 0, 0
 	return q
 }
@@ -71,7 +76,7 @@ func (q *Queue[T]) sparse() bool {
 
 // resize adjusts the size of queue q's underlying slice.
 func (q *Queue[T]) resize(size int) {
-	adjusted := make([]interface{}, size)
+	adjusted := make([]entry[T], size)
 	if q.front < q.back {
 		// rep not "wrapped" around, one copy suffices
 		copy(adjusted, q.rep[q.front:q.back])
@@ -106,7 +111,7 @@ func (q *Queue[T]) String() string {
 	result.WriteByte('[')
 	j := q.front
 	for i := 0; i < q.length; i++ {
-		result.WriteString(fmt.Sprintf("%v", q.rep[j]))
+		result.WriteString(fmt.Sprintf("%v", q.rep[j].Value))
 		if i < q.length-1 {
 			result.WriteByte(' ')
 		}
@@ -126,20 +131,20 @@ func (q *Queue[T]) dec(i int) int {
 	return (i - 1) & (len(q.rep) - 1) // requires l = 2^n
 }
 
-// Front returns the first element of queue q or nil.
+// Front returns the first element of queue q or T's zero value.
 func (q *Queue[T]) Front() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
-	return q.rep[q.front].(T), true
+	return q.rep[q.front].Value, true
 }
 
-// Back returns the last element of queue q or nil.
+// Back returns the last element of queue q or T's zero value.
 func (q *Queue[T]) Back() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
-	return q.rep[q.dec(q.back)].(T), true
+	return q.rep[q.dec(q.back)].Value, true
 }
 
 // PushFront inserts a new value v at the front of queue q.
@@ -147,7 +152,7 @@ func (q *Queue[T]) PushFront(v T) {
 	q.lazyInit()
 	q.lazyGrow()
 	q.front = q.dec(q.front)
-	q.rep[q.front] = v
+	q.rep[q.front] = entry[T]{Value: v, ValueSet: true}
 	q.length++
 }
 
@@ -155,33 +160,33 @@ func (q *Queue[T]) PushFront(v T) {
 func (q *Queue[T]) PushBack(v T) {
 	q.lazyInit()
 	q.lazyGrow()
-	q.rep[q.back] = v
+	q.rep[q.back] = entry[T]{Value: v, ValueSet: true}
 	q.back = q.inc(q.back)
 	q.length++
 }
 
-// PopFront removes and returns the first element of queue q or nil.
+// PopFront removes and returns the first element of queue q or T's zero value.
 func (q *Queue[T]) PopFront() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
 	v := q.rep[q.front]
-	q.rep[q.front] = nil // unused slots must be nil
+	q.rep[q.front] = entry[T]{ValueSet: false} // unused slots must be set to empty
 	q.front = q.inc(q.front)
 	q.length--
 	q.lazyShrink()
-	return v.(T), true
+	return v.Value, true
 }
 
-// PopBack removes and returns the last element of queue q or nil.
+// PopBack removes and returns the last element of queue q or T's zero value.
 func (q *Queue[T]) PopBack() (T, bool) {
 	if q.empty() {
 		return *new(T), false
 	}
 	q.back = q.dec(q.back)
 	v := q.rep[q.back]
-	q.rep[q.back] = nil // unused slots must be nil
+	q.rep[q.back] = entry[T]{ValueSet: false} // unused slots must be set to empty
 	q.length--
 	q.lazyShrink()
-	return v.(T), true
+	return v.Value, true
 }
